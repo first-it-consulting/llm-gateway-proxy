@@ -20,7 +20,6 @@ def main():
     print("llm-gateway-proxy")
     print(f"  Upstream:            {config.openai_base_url}")
     print(f"  mTLS client cert:    {'enabled' if config.get_client_cert() else 'disabled'}")
-    print(f"  Model mapping:       haiku->{config.small_model}  sonnet->{config.middle_model}  opus->{config.big_model}")
     print(f"  Listening on:        {config.host}:{config.port}")
     print(f"  Client key required: {bool(config.proxy_api_key)}")
 

@@ -23,7 +23,7 @@ Both endpoints share the same upstream connection, including **mutual TLS (mTLS)
 - **Two endpoints, one process.** No separate translation service to run alongside your OpenAI-compatible proxy.
 - **Mutual TLS to the upstream.** Client certificate + key (or a combined PEM), plus an optional custom CA bundle — for upstreams reachable only from inside a corporate network.
 - **Claude ⇄ OpenAI translation.** Full support for streaming, tool use, image inputs, and system prompts.
-- **Model tier mapping.** Claude's Haiku/Sonnet/Opus tiers map to whichever upstream models you configure.
+- **No model-name games.** Both endpoints forward the `model` field you send straight to the upstream — `GET /v1/models` tells you what's actually available.
 - **Request cancellation.** Upstream requests are cancelled when the client disconnects.
 - **Custom header injection.** Add arbitrary headers to upstream requests via `CUSTOM_HEADER_*` env vars.
 - **Optional client auth.** Gate access to the proxy itself with a shared `PROXY_API_KEY`.
@@ -78,24 +78,21 @@ For upstreams that require a client certificate:
 | `CA_BUNDLE_PATH` | Custom CA bundle to verify the upstream's server certificate (e.g. an internal corporate CA). Omit to use the system/default CA store. |
 | `SSL_VERIFY` | Set to `false` to disable upstream certificate verification. Local debugging only — never disable this in production. |
 
-### Model mapping
-
-The `/messages` endpoint maps Claude's model tiers to whichever upstream models you configure. Requests to `/v1/chat/completions` are never remapped — the `model` field is sent upstream exactly as given.
-
-| Requested model contains | Mapped to | Env variable |
-|---|---|---|
-| `haiku` | `SMALL_MODEL` | default `gpt-4o-mini` |
-| `sonnet` | `MIDDLE_MODEL` | default `BIG_MODEL` |
-| `opus` | `BIG_MODEL` | default `gpt-4o` |
-| *(anything else)* | passed through unchanged | — |
-
 ## Using it
+
+Neither endpoint remaps model names — whatever `model` you send goes upstream unchanged, so it must be an ID the upstream actually serves:
+
+```bash
+curl http://localhost:8082/v1/models
+```
 
 ### With Claude Code
 
 ```bash
-ANTHROPIC_BASE_URL=http://localhost:8082 claude
+ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_MODEL=<a-model-id-from-/v1/models> claude
 ```
+
+Claude Code defaults to Anthropic model names (`claude-3-5-sonnet-...`), which this proxy won't recognize — point `ANTHROPIC_MODEL` (and `ANTHROPIC_SMALL_FAST_MODEL`, if used) at a real upstream model ID.
 
 ### With an OpenAI-compatible client
 
@@ -107,23 +104,23 @@ Point the client's base URL at `http://localhost:8082/v1` (most OpenAI SDKs appe
 # OpenAI-compatible endpoint
 curl http://localhost:8082/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "Hello"}]}'
+  -d '{"model": "<a-model-id-from-/v1/models>", "messages": [{"role": "user", "content": "Hello"}]}'
 
 # Claude-compatible endpoint
 curl http://localhost:8082/messages \
   -H "Content-Type: application/json" \
-  -d '{"model": "claude-3-5-sonnet-20241022", "max_tokens": 100, "messages": [{"role": "user", "content": "Hello"}]}'
+  -d '{"model": "<a-model-id-from-/v1/models>", "max_tokens": 100, "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
-Other endpoints: `GET /health` (liveness + config summary), `GET /test-connection` (round-trips a real request through the upstream, mTLS included), `POST /messages/count_tokens` (rough estimate, ~4 chars/token).
+Other endpoints: `GET /v1/models` (or `/models`, lists what the upstream serves), `GET /health` (liveness + config summary), `GET /test-connection` (verifies upstream connectivity, mTLS included), `POST /messages/count_tokens` (rough estimate, ~4 chars/token).
 
 ## Testing
 
-`tests/smoke_test.py` is a manual end-to-end script — it talks to a running instance (and your real upstream), so it needs a valid `.env`:
+`tests/smoke_test.py` is a manual end-to-end script — it talks to a running instance (and your real upstream), so it needs a valid `.env` and a real model ID:
 
 ```bash
 python start_proxy.py &
-python tests/smoke_test.py
+PROXY_TEST_MODEL=<a-model-id-from-/v1/models> python tests/smoke_test.py
 ```
 
 ## Deployment
@@ -140,7 +137,6 @@ src/
 ├── core/
 │   ├── client.py               OpenAI SDK client, configured for mTLS
 │   ├── config.py                Environment-variable configuration
-│   ├── model_manager.py        Claude tier -> upstream model mapping
 │   └── logging.py
 └── models/claude.py           Pydantic models for the Claude Messages API
 ```

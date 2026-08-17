@@ -10,7 +10,6 @@ from src.conversion.response_converter import convert_openai_streaming_to_claude
 from src.core.client import OpenAIClient
 from src.core.config import config
 from src.core.logging import logger
-from src.core.model_manager import model_manager
 from src.models.claude import ClaudeMessagesRequest, ClaudeTokenCountRequest
 
 router = APIRouter()
@@ -72,6 +71,18 @@ async def create_chat_completion(http_request: Request, _: None = Depends(valida
     return JSONResponse(response)
 
 
+@router.get("/v1/models")
+@router.get("/models")
+async def list_models(_: None = Depends(validate_api_key)):
+    """List models available on the upstream, in OpenAI's /v1/models format."""
+    try:
+        models = [model.model_dump() async for model in openai_client.client.models.list()]
+        return {"object": "list", "data": models}
+    except Exception as e:
+        logger.error("Failed to list upstream models: %s", e)
+        raise HTTPException(status_code=502, detail=openai_client.classify_openai_error(str(e)))
+
+
 # ---------------------------------------------------------------------------
 # Claude-compatible endpoint — translated to/from the upstream OpenAI format.
 # Registered at both /messages and /v1/messages for compatibility with
@@ -87,7 +98,7 @@ async def create_message(
     try:
         logger.debug("Processing Claude request: model=%s, stream=%s", request.model, request.stream)
         request_id = str(uuid.uuid4())
-        openai_request = convert_claude_to_openai(request, model_manager)
+        openai_request = convert_claude_to_openai(request)
 
         if await http_request.is_disconnected():
             raise HTTPException(status_code=499, detail="Client disconnected")
@@ -153,20 +164,10 @@ async def health_check():
 
 @router.get("/test-connection")
 async def test_connection(_: None = Depends(validate_api_key)):
-    """Send a minimal request upstream to verify connectivity (including mTLS)."""
+    """Verify upstream connectivity (mTLS handshake, auth, reachability) by listing models."""
     try:
-        response = await openai_client.create_chat_completion(
-            {
-                "model": config.small_model,
-                "messages": [{"role": "user", "content": "Hello"}],
-                "max_tokens": 5,
-            }
-        )
-        return {
-            "status": "success",
-            "model_used": config.small_model,
-            "response_id": response.get("id", "unknown"),
-        }
+        models = [model.id async for model in openai_client.client.models.list()]
+        return {"status": "success", "model_count": len(models)}
     except Exception as e:
         logger.error("Upstream connectivity test failed: %s", e)
         return JSONResponse(
@@ -189,6 +190,7 @@ async def root():
         "status": "running",
         "endpoints": {
             "openai_chat_completions": "/v1/chat/completions",
+            "models": "/v1/models",
             "claude_messages": "/messages",
             "claude_count_tokens": "/messages/count_tokens",
             "health": "/health",

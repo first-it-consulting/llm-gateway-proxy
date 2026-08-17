@@ -9,10 +9,14 @@ from src.models.claude import ClaudeMessage, ClaudeMessagesRequest
 logger = logging.getLogger(__name__)
 
 
-def convert_claude_to_openai(claude_request: ClaudeMessagesRequest, model_manager) -> Dict[str, Any]:
-    """Convert a Claude Messages API request into an OpenAI chat completion request."""
+def convert_claude_to_openai(claude_request: ClaudeMessagesRequest) -> Dict[str, Any]:
+    """Convert a Claude Messages API request into an OpenAI chat completion request.
 
-    openai_model = model_manager.map_claude_model_to_openai(claude_request.model)
+    The model name is forwarded to the upstream unchanged -- callers must
+    request a model ID the upstream actually serves (see GET /v1/models).
+    """
+
+    openai_model = claude_request.model
     openai_messages = []
 
     # OpenAI has no system role in the messages array; the system prompt is
