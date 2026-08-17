@@ -249,6 +249,16 @@ async def convert_openai_streaming_to_claude(
         error_event = {"type": "error", "error": {"type": "api_error", "message": f"Streaming error: {e}"}}
         yield f"event: error\ndata: {json.dumps(error_event, ensure_ascii=False)}\n\n"
         return
+    finally:
+        # We routinely stop reading `openai_stream` early (on "[DONE]" or a
+        # client disconnect) rather than letting it run to natural
+        # exhaustion. Closing it explicitly here releases the upstream
+        # connection immediately instead of leaving that to the garbage
+        # collector at some arbitrary later point.
+        try:
+            await openai_stream.aclose()
+        except Exception:
+            pass
 
     yield (
         f"event: {Constants.EVENT_CONTENT_BLOCK_STOP}\ndata: "
