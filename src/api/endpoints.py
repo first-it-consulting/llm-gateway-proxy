@@ -152,7 +152,7 @@ async def health_check():
 
 
 @router.get("/test-connection")
-async def test_connection():
+async def test_connection(_: None = Depends(validate_api_key)):
     """Send a minimal request upstream to verify connectivity (including mTLS)."""
     try:
         response = await openai_client.create_chat_completion(

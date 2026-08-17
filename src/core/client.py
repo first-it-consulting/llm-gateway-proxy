@@ -7,6 +7,21 @@ from fastapi import HTTPException
 from openai import AsyncAzureOpenAI, AsyncOpenAI, DefaultAsyncHttpxClient
 from openai._exceptions import APIError, AuthenticationError, BadRequestError, RateLimitError
 
+# `request` dicts passed into this client are splatted as **kwargs into the
+# OpenAI SDK's `.create()` call. A few of its accepted parameter names
+# control the outgoing HTTP request itself (headers/query/timeout) rather
+# than the chat-completion payload. `/v1/chat/completions` forwards a raw,
+# client-supplied JSON body here, so those names must be stripped — otherwise
+# a client could set extra_headers to override headers we inject server-side
+# (like the upstream bearer token) or extra_query/timeout to tamper with the
+# request in other ways.
+_RESERVED_SDK_KWARGS = frozenset({"extra_headers", "extra_query", "extra_body", "timeout"})
+
+
+def _sanitize_request(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Drop SDK transport-control kwargs from an untrusted request dict."""
+    return {k: v for k, v in request.items() if k not in _RESERVED_SDK_KWARGS}
+
 
 def build_ssl_context(
     client_cert: Optional[Union[str, Tuple[str, str]]], verify: Any
@@ -78,6 +93,7 @@ class OpenAIClient:
         self, request: Dict[str, Any], request_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Send a chat completion to the upstream API, with cancellation support."""
+        request = _sanitize_request(request)
         if request_id:
             cancel_event = asyncio.Event()
             self.active_requests[request_id] = cancel_event
@@ -129,6 +145,7 @@ class OpenAIClient:
         self, request: Dict[str, Any], request_id: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
         """Stream a chat completion from the upstream API as `data: <json>` lines."""
+        request = _sanitize_request(request)
         if request_id:
             cancel_event = asyncio.Event()
             self.active_requests[request_id] = cancel_event

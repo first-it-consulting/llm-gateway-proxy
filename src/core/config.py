@@ -1,3 +1,4 @@
+import hmac
 import os
 import sys
 
@@ -61,10 +62,10 @@ class Config:
         return self.ssl_verify
 
     def validate_client_api_key(self, client_api_key):
-        """Validate a client-supplied key against PROXY_API_KEY."""
+        """Validate a client-supplied key against PROXY_API_KEY (constant-time)."""
         if not self.proxy_api_key:
             return True
-        return client_api_key == self.proxy_api_key
+        return hmac.compare_digest(client_api_key, self.proxy_api_key)
 
     def get_custom_headers(self):
         """Collect CUSTOM_HEADER_* environment variables into a headers dict."""
