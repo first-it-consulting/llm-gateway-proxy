@@ -1,0 +1,13 @@
+services:
+  llm-gateway-proxy:
+    build: .
+    ports:
+      - "${PORT:-8082}:${PORT:-8082}"
+    env_file:
+      - .env
+    volumes:
+      # Mount your mTLS client certificate/key (and custom CA bundle, if
+      # any) here, and point CLIENT_CERT_PATH / CLIENT_KEY_PATH /
+      # CA_BUNDLE_PATH in .env at /app/certs/<filename>.
+      - ./certs:/app/certs:ro
+    restart: unless-stopped

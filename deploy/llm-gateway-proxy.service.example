@@ -1,0 +1,23 @@
+# Example systemd unit for running llm-gateway-proxy without Docker.
+#
+# Install:
+#   sudo cp deploy/llm-gateway-proxy.service.example /etc/systemd/system/llm-gateway-proxy.service
+#   sudo $EDITOR /etc/systemd/system/llm-gateway-proxy.service   # fix the paths below
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now llm-gateway-proxy
+
+[Unit]
+Description=llm-gateway-proxy
+After=network.target
+
+[Service]
+Type=simple
+User=llm-proxy
+WorkingDirectory=/opt/llm-gateway-proxy
+EnvironmentFile=/opt/llm-gateway-proxy/.env
+ExecStart=/opt/llm-gateway-proxy/.venv/bin/python /opt/llm-gateway-proxy/start_proxy.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
