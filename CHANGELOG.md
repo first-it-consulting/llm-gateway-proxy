@@ -36,9 +36,5 @@ Initial release. Combines [claude-code-proxy](https://github.com/fuergaosi233/cl
 
 - All Ollama-compatible shim endpoints (`/api/tags`, `/api/show`, `/api/version`) from the original corporate proxy — out of scope for this service.
 
-<!--
-Once this repo has a GitHub remote, replace this comment with compare-view
-links for each version, e.g.:
-[Unreleased]: https://github.com/<owner>/<repo>/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/<owner>/<repo>/releases/tag/v1.0.0
--->
+[Unreleased]: https://github.com/first-it-consulting/llm-gateway-proxy/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/first-it-consulting/llm-gateway-proxy/releases/tag/v1.0.0
