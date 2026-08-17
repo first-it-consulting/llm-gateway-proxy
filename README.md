@@ -58,6 +58,12 @@ python start_proxy.py
 ```
 
 > **Gotcha:** if your shell already exports `OPENAI_API_KEY` (e.g. for another CLI tool), it silently wins over `.env` — `python-dotenv` never overrides a variable that's already set in the environment. Symptom: requests fail with `401`/`502 Invalid API key` even though `.env` looks correct. Fix: `env -u OPENAI_API_KEY python start_proxy.py`, or rename the conflicting shell variable. (Not an issue with Docker — `env_file` doesn't inherit your shell's exports.)
+>
+> **Gotcha (mTLS):** if `.env`'s `CLIENT_CERT_PATH`/`CLIENT_KEY_PATH` are set to `/app/certs/...` (the Docker convention — see [Mutual TLS](#mutual-tls) below), running locally fails fast with `FileNotFoundError`, since that path only exists inside the container. Override both on the command line with the real path instead — a real shell env var always wins over `.env`, same mechanism as above:
+>
+> ```bash
+> CLIENT_CERT_PATH=/real/path/to/client.cert CLIENT_KEY_PATH=/real/path/to/client.key python start_proxy.py
+> ```
 
 ## Configuration
 
