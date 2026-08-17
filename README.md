@@ -55,6 +55,8 @@ cp .env.example .env
 python start_proxy.py
 ```
 
+> **Gotcha:** if your shell already exports `OPENAI_API_KEY` (e.g. for another CLI tool), it silently wins over `.env` — `python-dotenv` never overrides a variable that's already set in the environment. Symptom: requests fail with `401`/`502 Invalid API key` even though `.env` looks correct. Fix: `env -u OPENAI_API_KEY python start_proxy.py`, or rename the conflicting shell variable. (Not an issue with Docker — `env_file` doesn't inherit your shell's exports.)
+
 ## Configuration
 
 All configuration is via environment variables — see [.env.example](.env.example) for the full, commented list. The essentials:
