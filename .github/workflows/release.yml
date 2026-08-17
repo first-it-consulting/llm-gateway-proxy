@@ -1,0 +1,41 @@
+name: Release
+
+# Pushing a tag like "v1.0.0" creates a matching GitHub Release, with its
+# body pulled straight from that version's section in CHANGELOG.md. The
+# changelog entry itself is written by hand as part of preparing the
+# release (see "Releasing a new version" in README.md) -- this workflow
+# only automates turning that into a Release, not writing the notes.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Strip leading "v" from the tag to match CHANGELOG.md headings
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract this version's changelog entry
+        id: changelog
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          version: ${{ steps.version.outputs.version }}
+          path: ./CHANGELOG.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.changes }}
+          prerelease: ${{ steps.changelog.outputs.status == 'prereleased' }}
+          draft: ${{ steps.changelog.outputs.status == 'unreleased' }}

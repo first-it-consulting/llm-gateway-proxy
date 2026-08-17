@@ -146,6 +146,21 @@ PROXY_TEST_MODEL=<a-model-id-from-/v1/models> python tests/smoke_test.py
 - **Docker** (recommended): `docker compose up -d --build`.
 - **systemd**: see [deploy/llm-gateway-proxy.service.example](deploy/llm-gateway-proxy.service.example) for running the proxy directly on a Linux host.
 
+## Releasing a new version
+
+Versioning follows [SemVer](https://semver.org/); changes are recorded in [CHANGELOG.md](CHANGELOG.md) ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format).
+
+1. Move the relevant entries from `## [Unreleased]` into a new `## [X.Y.Z] - YYYY-MM-DD` section.
+2. Bump `version` in [pyproject.toml](pyproject.toml) to match.
+3. Commit, then tag and push:
+
+   ```bash
+   git tag vX.Y.Z
+   git push origin main vX.Y.Z
+   ```
+
+4. Pushing the tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which creates a GitHub Release from that version's changelog entry automatically — no need to write release notes twice.
+
 ## Project layout
 
 ```
