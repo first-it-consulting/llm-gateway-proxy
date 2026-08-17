@@ -6,8 +6,13 @@ services:
     env_file:
       - .env
     volumes:
-      # Mount your mTLS client certificate/key (and custom CA bundle, if
-      # any) here, and point CLIENT_CERT_PATH / CLIENT_KEY_PATH /
-      # CA_BUNDLE_PATH in .env at /app/certs/<filename>.
-      - ./certs:/app/certs:ro
+      # Mounts your mTLS client certificate/key (and custom CA bundle, if
+      # any) read-only into the container, then point CLIENT_CERT_PATH /
+      # CLIENT_KEY_PATH / CA_BUNDLE_PATH in .env at /app/certs/<filename>.
+      #
+      # CERTS_DIR (set in .env) picks the *host* source directory -- point
+      # it at wherever your real certs already live so nothing sensitive
+      # has to be copied into this repo. Defaults to ./certs (inside the
+      # repo, gitignored) for anyone who'd rather keep them there instead.
+      - ${CERTS_DIR:-./certs}:/app/certs:ro
     restart: unless-stopped

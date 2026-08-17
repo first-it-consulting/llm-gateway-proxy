@@ -34,8 +34,10 @@ Both endpoints share the same upstream connection, including **mutual TLS (mTLS)
 cp .env.example .env
 # edit .env: set OPENAI_API_KEY and OPENAI_BASE_URL at minimum
 
-# if your upstream requires mTLS, drop your cert/key into ./certs
-# and point CLIENT_CERT_PATH / CLIENT_KEY_PATH at them in .env
+# if your upstream requires mTLS: point CERTS_DIR at the directory your
+# real cert/key already live in (keeps them out of this repo entirely),
+# and set CLIENT_CERT_PATH / CLIENT_KEY_PATH to /app/certs/<filename> --
+# see the Mutual TLS section below.
 
 docker compose up --build
 ```
@@ -78,6 +80,14 @@ For upstreams that require a client certificate:
 | `CLIENT_CERT_PATH` | Client certificate. If `CLIENT_KEY_PATH` is unset, this file must contain both the certificate and the unencrypted private key (a combined PEM). |
 | `CLIENT_KEY_PATH` | Client private key, when kept in a separate file from the certificate. |
 | `CA_BUNDLE_PATH` | Custom CA bundle to verify the upstream's server certificate (e.g. an internal corporate CA). Omit to use the system/default CA store. |
+| `CERTS_DIR` | Docker only. Host directory mounted read-only to `/app/certs`. Defaults to `./certs` (inside the repo, gitignored); point it at an external directory instead so cert files never need to be copied into the repo at all. |
+
+`CLIENT_CERT_PATH`/`CLIENT_KEY_PATH`/`CA_BUNDLE_PATH` must resolve from wherever the process actually runs, which differs by how you start it:
+
+- **`python start_proxy.py`** (no Docker): any path readable on this machine, e.g. an absolute path outside the repo.
+- **`docker compose`**: the container only sees `CERTS_DIR` (or `./certs` by default) mounted at `/app/certs` — these must be `/app/certs/<filename>` regardless of where the files actually live on the host.
+
+Prefer keeping real certs outside the repo (`CERTS_DIR` for Docker, an absolute path for local runs) over dropping them into `./certs/` — `.gitignore` and the repo's `pre-commit` hook stop them from being committed either way, but files that were never inside the working tree can't be `git add`ed by mistake in the first place.
 | `SSL_VERIFY` | Set to `false` to disable upstream certificate verification. Local debugging only — never disable this in production. |
 
 ## Using it
