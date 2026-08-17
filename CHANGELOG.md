@@ -23,6 +23,7 @@ Initial release. Combines [claude-code-proxy](https://github.com/fuergaosi233/cl
 ### Changed
 
 - Both endpoints forward the requested `model` to the upstream unchanged — no Claude-tier-to-model mapping. Check `GET /v1/models` for what's actually available.
+- `/messages` forwards the client's requested `max_tokens` unchanged — no `MAX_TOKENS_LIMIT`/`MIN_TOKENS_LIMIT` clamping. Models vary too widely in real capacity for a fixed global cap to make sense; let the upstream reject an out-of-range value if it needs to.
 
 ### Fixed
 
