@@ -209,7 +209,7 @@ Versioning follows [SemVer](https://semver.org/); changes are recorded in [CHANG
 
 The image job authenticates with the run's built-in `GITHUB_TOKEN`, so there is no PAT to store or rotate. Both jobs are bound to the **`release`** environment, which requires approval from `first-it-consulting` before anything runs — pushing a tag parks the workflow at *Review deployments*, and approving it is what actually publishes.
 
-Two one-time prerequisites, both in the repo's web UI: Settings → Actions → General → *Workflow permissions* must be **Read and write permissions**, and the `llm-gateway-proxy` package must exist on ghcr before its first push (see the header of `.github/workflows/release.yml`).
+One one-time prerequisite: the `llm-gateway-proxy` package must exist on ghcr before its first push (see the header of `.github/workflows/release.yml`). Settings → Actions → General → *Workflow permissions* can stay at the **Read-only** default — the `permissions:` block in the workflow overrides it.
 
 ## Project layout
 

@@ -19,9 +19,9 @@ name: Release
 #      name "llm-gateway-proxy", visibility "Public" (so anyone can pull from
 #      this public repo without a login), linked to this repository. Without
 #      it the first push fails with a permission denied.
-#   2. Settings -> Actions -> General -> "Workflow permissions" must be
-#      "Read and write permissions". The default "Read-only" makes
-#      GITHUB_TOKEN ignore the packages: write request above.
+#   2. Nothing else. The repo's Actions "Workflow permissions" default can
+#      stay "Read-only": a permissions: block in this workflow overrides it,
+#      so the packages: write declared above is what the token gets.
 #
 # Publishing is gated behind the "release" GitHub environment, which requires
 # approval from first-it-consulting before either job runs -- so a tag push
