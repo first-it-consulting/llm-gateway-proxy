@@ -43,6 +43,15 @@ def test_parse_defaults_prefix_and_api_key():
     ]
 
 
+def test_default_prefix_is_lowercase_even_for_uppercase_name():
+    """The derived prefix must agree with the case clients are matched on."""
+    specs = parse_extra_upstreams({"UPSTREAM_OLLAMA_BASE_URL": "http://127.0.0.1:11434/v1"})
+    assert specs[0].prefix == "ollama/"
+    assert UpstreamRouter("D", [Route(s.name, s.prefix, "U") for s in specs]).resolve("ollama/x")[
+        0
+    ].name == "ollama"
+
+
 def test_parse_explicit_prefix_key_and_underscored_name():
     specs = parse_extra_upstreams(
         {
@@ -64,6 +73,8 @@ def test_parse_explicit_prefix_key_and_underscored_name():
         {"UPSTREAM_A_BASE_URL": "http://a", "UPSTREAM_A_PREFIX": "  "},
         {"UPSTREAM_A_BASE_URL": "http://a", "UPSTREAM_A_API_KEY": ""},
         {"UPSTREAM_A_BASE_URL": "http://a", "UPSTREAM_A_API_KEY": "   "},
+        {"UPSTREAM_A_BASE_URL": "http://a", "UPSTREAM_A_PREFIX": "A/"},
+        {"UPSTREAM_A_BASE_URL": "http://a", "UPSTREAM_A_PREFIX": "Ollama/"},
     ],
     ids=[
         "duplicate-prefix",
@@ -73,6 +84,8 @@ def test_parse_explicit_prefix_key_and_underscored_name():
         "blank-prefix",
         "empty-api-key",
         "blank-api-key",
+        "mixed-case-prefix",
+        "mixed-case-prefix-matches-default-form",
     ],
 )
 def test_parse_rejects_invalid_config(env):
