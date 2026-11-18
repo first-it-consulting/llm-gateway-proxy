@@ -7,10 +7,21 @@ name: Release
 # README.md) -- this workflow automates the build and the Release, not the notes.
 #
 # Image: ghcr.io/first-it-consulting/llm-gateway-proxy:<version> and :latest,
-# multi-arch (linux/amd64 + linux/arm64). Publishing needs two repo secrets --
-# GHCR_USERNAME (your GitHub login) and GHCR_TOKEN (a fine-grained PAT with
-# write access to this account's packages). Without them the image job fails
-# and no image appears; the GitHub Release still gets created.
+# multi-arch (linux/amd64 + linux/arm64).
+#
+# Auth uses the run's built-in GITHUB_TOKEN, not a stored PAT: it expires when
+# the run ends and the packages:write permission above is all it can do, so
+# there is no standing credential to rotate or leak. Two prerequisites, both
+# one-time and both set in the repo's web UI (the API cannot do them):
+#
+#   1. The ghcr.io package must exist before its first push. Create it at
+#      https://github.com/first-it-consulting?tab=packages -> "New package" ->
+#      name "llm-gateway-proxy", visibility "Public" (so anyone can pull from
+#      this public repo without a login), linked to this repository. Without
+#      it the first push fails with a permission denied.
+#   2. Settings -> Actions -> General -> "Workflow permissions" must be
+#      "Read and write permissions". The default "Read-only" makes
+#      GITHUB_TOKEN ignore the packages: write request above.
 
 on:
   push:
@@ -48,11 +59,13 @@ jobs:
             type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
 
       - name: Login to GHCR
+        # github.token, not a stored secret: short-lived, scoped to this run,
+        # and limited to the packages:write grant declared above.
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
 
       - name: Build and push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
