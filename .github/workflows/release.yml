@@ -22,6 +22,22 @@ name: Release
 #   2. Settings -> Actions -> General -> "Workflow permissions" must be
 #      "Read and write permissions". The default "Read-only" makes
 #      GITHUB_TOKEN ignore the packages: write request above.
+#
+# Publishing is gated behind the "release" GitHub environment, which requires
+# approval from first-it-consulting before either job runs -- so a tag push
+# alone cannot publish, and a compromised push cannot silently ship an image.
+# Approve the pending deployment at the "Review deployments" prompt on the run
+# page. To revoke publishing immediately, delete the environment's required
+# reviewer (Settings -> Environments -> release) or delete the environment;
+# jobs bound to a nonexistent environment fail rather than run ungated.
+#
+# Scope of the write token, so the remaining trade-off is visible:
+# packages:write is repository-scoped, not package-scoped -- once approved, the
+# run can push to ANY package belonging to this repository, not just
+# llm-gateway-proxy, and contents:write lets it move tags. It dies when the job
+# ends. Tag protection rules are an org/enterprise feature and this is a
+# user-owned repo, so the environment approval is the gate that stands in for
+# them.
 
 on:
   push:
@@ -36,6 +52,15 @@ jobs:
   container-image:
     name: Build and publish container image
     runs-on: ubuntu-latest
+    # Belt and braces: this workflow only triggers on a v*.*.* tag push, which
+    # a fork cannot produce, so pull_request_request_target-style abuse is not
+    # reachable. Kept so a future "workflow_dispatch"/pull trigger addition
+    # cannot quietly make the publishing job run on untrusted input.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment: release
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -80,6 +105,9 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    # Gate the GitHub Release behind the same approval as the image push,
+    # otherwise a tag could still publish notes without a review.
+    environment: release
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
