@@ -47,14 +47,14 @@ docker compose up --build
 
 The proxy listens on `http://localhost:8082` (or whatever `PORT` you set).
 
-To run a published image instead of building it locally — multi-arch (`linux/amd64`, `linux/arm64`), public, no login needed:
+To run a published image instead of building it locally — multi-arch (`linux/amd64`, `linux/arm64`):
 
 ```bash
-docker compose pull          # or: docker pull ghcr.io/first-it-consulting/llm-gateway-proxy:1.1.1
-IMAGE_TAG=1.1.1 docker compose up -d
+docker compose pull          # or: docker pull ghcr.io/first-it-consulting/llm-gateway-proxy:1.1.2
+IMAGE_TAG=1.1.2 docker compose up -d
 ```
 
-`IMAGE_TAG` defaults to `latest`; every `vX.Y.Z` tag also publishes `X.Y` and `latest`.
+`IMAGE_TAG` defaults to `latest`; every `vX.Y.Z` tag also publishes `X.Y` and `latest`. See the note under **Releasing a new version** about logging in to pull.
 
 ## Quick Start (local Python)
 
@@ -209,7 +209,13 @@ Versioning follows [SemVer](https://semver.org/); changes are recorded in [CHANG
 
 The image job authenticates with the run's built-in `GITHUB_TOKEN`, so there is no PAT to store or rotate, and pushing the tag is all it takes — nothing waits on a manual approval.
 
-One one-time prerequisite: the `llm-gateway-proxy` package must exist on ghcr before its first push (see the header of `.github/workflows/release.yml`). Settings → Actions → General → *Workflow permissions* can stay at the **Read-only** default — the `permissions:` block in the workflow overrides it.
+The image pulls anonymously. The ghcr package is created automatically by the first publish but starts out **private**, so until someone flips it to Public (repo owner → Packages → `llm-gateway-proxy` → Package settings → Change visibility), pulls need a token:
+
+```bash
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u <you> --password-stdin
+```
+
+See the header of `.github/workflows/release.yml` for a one-line check of whether it is public yet.
 
 ## Project layout
 
