@@ -47,6 +47,15 @@ docker compose up --build
 
 The proxy listens on `http://localhost:8082` (or whatever `PORT` you set).
 
+To run a published image instead of building it locally — multi-arch (`linux/amd64`, `linux/arm64`), public, no login needed:
+
+```bash
+docker compose pull          # or: docker pull ghcr.io/first-it-consulting/llm-gateway-proxy:1.1.1
+IMAGE_TAG=1.1.1 docker compose up -d
+```
+
+`IMAGE_TAG` defaults to `latest`; every `vX.Y.Z` tag also publishes `X.Y` and `latest`.
+
 ## Quick Start (local Python)
 
 Needs Python 3.10 or newer (the Docker image ships 3.12).
@@ -162,16 +171,16 @@ Unit tests (no network, upstreams are faked):
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/test_upstream_routing.py
+pytest
 ```
 
 The same suite runs in CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) on Python 3.10 and 3.12 for every pull request and every push to `main`; 3.12 is what the Docker image ships.
 
-`tests/smoke_test.py` is a manual end-to-end script — it talks to a running instance (and your real upstream), so it needs a valid `.env` and a real model ID:
+`tests/smoke_test_check.py` is a manual end-to-end script — it talks to a running instance (and your real upstream), so it needs a valid `.env` and a real model ID. It is named `*_check.py` rather than `test_*.py` on purpose, so `pytest` never collects it:
 
 ```bash
 python start_proxy.py &
-PROXY_TEST_MODEL=<a-model-id-from-/v1/models> python tests/smoke_test.py
+PROXY_TEST_MODEL=<a-model-id-from-/v1/models> python tests/smoke_test_check.py
 ```
 
 ## Deployment
@@ -196,7 +205,11 @@ Versioning follows [SemVer](https://semver.org/); changes are recorded in [CHANG
    git push origin vX.Y.Z
    ```
 
-5. Pushing the tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which creates a GitHub Release from that version's changelog entry automatically — no need to write release notes twice.
+5. Pushing the tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which builds and pushes the multi-arch container image to GHCR and creates a GitHub Release from that version's changelog entry automatically — no need to write release notes twice.
+
+The image job authenticates with the run's built-in `GITHUB_TOKEN`, so there is no PAT to store or rotate. Both jobs are bound to the **`release`** environment, which requires approval from `first-it-consulting` before anything runs — pushing a tag parks the workflow at *Review deployments*, and approving it is what actually publishes.
+
+One one-time prerequisite: the `llm-gateway-proxy` package must exist on ghcr before its first push (see the header of `.github/workflows/release.yml`). Settings → Actions → General → *Workflow permissions* can stay at the **Read-only** default — the `permissions:` block in the workflow overrides it.
 
 ## Project layout
 
@@ -212,7 +225,7 @@ src/
 └── models/claude.py           Pydantic models for the Claude Messages API
 tests/
 ├── test_upstream_routing.py   Offline unit tests (routing, config, endpoints)
-└── smoke_test.py              Manual end-to-end test against a running proxy
+└── smoke_test_check.py        Manual end-to-end check against a running proxy
 ```
 
 ## Acknowledgments

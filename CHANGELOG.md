@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Published container images on GHCR: pushing a `vX.Y.Z` tag now builds `ghcr.io/first-it-consulting/llm-gateway-proxy` for `linux/amd64` and `linux/arm64` and pushes `X.Y.Z`, `X.Y` and `latest`. The package is public, so no login is needed to pull. `docker-compose.yml` names that image, so `docker compose pull` works out of the box. Publishing authenticates with the run's built-in `GITHUB_TOKEN`, so there is no standing credential to rotate, and both jobs sit behind a `release` environment that requires approval before anything runs — a tag push alone cannot publish. It needs one one-time setting in the repo's web UI: the ghcr package created up front (public, linked to this repo). Actions "Workflow permissions" can stay at its Read-only default.
+
+### Fixed
+
+- A bare `pytest` in the repo is green again. The manual smoke script lived in `tests/` as `test_*.py`, so pytest collected its six `async def` steps and reported them as failures (`async def functions are not natively supported`) even though the script itself was fine. Renamed to `tests/smoke_test_check.py`, which pytest ignores by convention, and CI now runs the whole `pytest` suite instead of one named file.
+
 ### Changed
 
 - **Breaking:** the minimum supported Python is now 3.10 (`requires-python`). The floor was 3.9, but no current GitHub runner can provision 3.9 — the `actions/python-versions` manifest has no 3.9 build for Ubuntu 24.04 or later — so nothing was ever verifying it. The CI matrix and the declared floor now agree.

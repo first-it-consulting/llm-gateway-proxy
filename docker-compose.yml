@@ -1,5 +1,10 @@
 services:
   llm-gateway-proxy:
+    # `image` names the tag `build` produces, so `docker compose build` tags
+    # locally the same way a published build does, and dropping `build` (or
+    # running `docker compose pull`) pulls the published image instead.
+    # Published builds are multi-arch (linux/amd64 + linux/arm64).
+    image: ghcr.io/first-it-consulting/llm-gateway-proxy:${IMAGE_TAG:-latest}
     build: .
     ports:
       - "${PORT:-8082}:${PORT:-8082}"
