@@ -2,6 +2,8 @@ import hmac
 import os
 import sys
 
+from src.core.upstreams import parse_extra_upstreams
+
 
 class Config:
     """Runtime configuration, loaded from environment variables (see .env.example)."""
@@ -38,6 +40,9 @@ class Config:
             "0",
             "no",
         )
+
+        # Additional upstreams routed by model prefix (see src/core/upstreams.py).
+        self.extra_upstreams = parse_extra_upstreams(os.environ)
 
     def get_client_cert(self):
         """Return the httpx `cert` value for mTLS, or None if not configured."""

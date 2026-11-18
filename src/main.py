@@ -19,6 +19,8 @@ def main():
 
     print("llm-gateway-proxy")
     print(f"  Upstream:            {config.openai_base_url}")
+    for spec in config.extra_upstreams:
+        print(f"  Upstream {spec.name + ':':<11}{spec.base_url}  (models '{spec.prefix}*')")
     print(f"  mTLS client cert:    {'enabled' if config.get_client_cert() else 'disabled'}")
     print(f"  Listening on:        {config.host}:{config.port}")
     print(f"  Client key required: {bool(config.proxy_api_key)}")

@@ -1,7 +1,7 @@
 import asyncio
 import json
 import ssl
-from typing import Any, AsyncGenerator, Dict, Optional, Tuple, Union
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
 from openai import AsyncAzureOpenAI, AsyncOpenAI, DefaultAsyncHttpxClient
@@ -182,6 +182,10 @@ class OpenAIClient:
         finally:
             if request_id:
                 self.active_requests.pop(request_id, None)
+
+    async def list_models(self) -> List[Dict[str, Any]]:
+        """Return the upstream's model objects as plain dicts."""
+        return [model.model_dump() async for model in self.client.models.list()]
 
     def classify_openai_error(self, error_detail: Any) -> str:
         """Provide clearer guidance for common upstream error conditions."""

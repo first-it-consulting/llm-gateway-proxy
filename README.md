@@ -1,21 +1,23 @@
 # llm-gateway-proxy
 
-A small FastAPI server that puts **one OpenAI-compatible upstream** behind **two client-facing endpoints**:
+A small FastAPI server that puts **one or more OpenAI-compatible upstreams** behind **two client-facing endpoints**:
 
 - `POST /v1/chat/completions` — OpenAI Chat Completions format, forwarded as-is.
 - `POST /messages` — Anthropic Messages format (what Claude Code and the Anthropic SDKs speak), translated to/from OpenAI format on the fly.
 
 Both endpoints share the same upstream connection, including **mutual TLS (mTLS)** client-certificate authentication for upstreams that sit behind a corporate network. Streaming, tool/function calling, image inputs, and request cancellation are supported on both endpoints.
 
+Optionally, **additional upstreams** (e.g. a local Ollama) can sit next to the default one; requests are routed by **model-name prefix** (`ollama/qwen3-coder:30b` → Ollama), so a single client endpoint — such as the one `ANTHROPIC_BASE_URL` points Claude Code at — reaches all of them.
+
 ```
-                         ┌─────────────────────────┐
- OpenAI-style client ───▶│  /v1/chat/completions   │───┐
-                         └─────────────────────────┘   │
-                                                        ├──▶  upstream OpenAI-compatible API
-                         ┌─────────────────────────┐   │      (mTLS + bearer token)
- Claude Code / Anthropic▶│  /messages              │───┘
- SDK client              │  (translated to OpenAI) │
-                         └─────────────────────────┘
+                         ┌─────────────────────────┐                      ┌─▶ default upstream (OpenAI-compatible)
+ OpenAI-style client ───▶│  /v1/chat/completions   │───┐   model-prefix   │   mTLS + bearer token, custom headers
+                         └─────────────────────────┘   │   router         │   model "gpt-4o" (no known prefix)
+                                                       ├──────────────────┤
+                         ┌─────────────────────────┐   │                  │
+ Claude Code / Anthropic▶│  /messages              │───┘                  └─▶ extra upstreams (optional)
+ SDK client              │  (translated to OpenAI) │                          e.g. Ollama: model "ollama/qwen3:8b"
+                         └─────────────────────────┘                          (prefix stripped, no corp credentials)
 ```
 
 ## Features
@@ -23,7 +25,8 @@ Both endpoints share the same upstream connection, including **mutual TLS (mTLS)
 - **Two endpoints, one process.** No separate translation service to run alongside your OpenAI-compatible proxy.
 - **Mutual TLS to the upstream.** Client certificate + key (or a combined PEM), plus an optional custom CA bundle — for upstreams reachable only from inside a corporate network.
 - **Claude ⇄ OpenAI translation.** Full support for streaming, tool use, image inputs, and system prompts.
-- **No model-name games.** Both endpoints forward the `model` field you send straight to the upstream — `GET /v1/models` tells you what's actually available.
+- **Multiple upstreams, routed by model prefix.** Add e.g. a local Ollama via `UPSTREAM_OLLAMA_BASE_URL`; `ollama/<model>` goes there, everything else to the default upstream. Extra upstreams never see the default upstream's client certificate or custom headers.
+- **No model-name games.** Apart from stripping a route prefix, the `model` you send goes upstream unchanged — `GET /v1/models` lists what every upstream actually serves.
 - **Request cancellation.** Upstream requests are cancelled when the client disconnects.
 - **Custom header injection.** Add arbitrary headers to upstream requests via `CUSTOM_HEADER_*` env vars.
 - **Optional client auth.** Gate access to the proxy itself with a shared `PROXY_API_KEY`.
@@ -76,6 +79,23 @@ All configuration is via environment variables — see [.env.example](.env.examp
 | `AZURE_API_VERSION` | Set only when the upstream is Azure OpenAI | unset |
 | `PORT` / `HOST` | Where the proxy listens | `8082` / `0.0.0.0` |
 | `PROXY_API_KEY` | Shared secret clients must send to use this proxy | unset (disabled) |
+| `UPSTREAM_<NAME>_BASE_URL` | Declares an extra upstream, routed by model prefix (see below) | unset |
+
+### Multiple upstreams (model-prefix routing)
+
+The `OPENAI_*` settings define the **default** upstream. Additional OpenAI-compatible upstreams — e.g. a local Ollama — are declared per name:
+
+```bash
+UPSTREAM_OLLAMA_BASE_URL=http://127.0.0.1:11434/v1
+# optional: UPSTREAM_OLLAMA_PREFIX (default "ollama/"), UPSTREAM_OLLAMA_API_KEY (default "not-needed")
+```
+
+A request for `ollama/qwen3-coder:30b` goes to Ollama as `qwen3-coder:30b`; anything without a known prefix goes to the default upstream unchanged. The longest matching prefix wins. On `/messages`, responses carry the model name exactly as the client sent it (prefix included); on `/v1/chat/completions` the upstream's response is passed through as-is, so its `model` field is the upstream's own (unprefixed) ID.
+
+- `GET /v1/models` merges all upstreams, listing extra-upstream models with their prefix. An unreachable upstream is skipped (logged), not fatal.
+- `GET /health` lists the configured upstreams; `GET /test-connection` checks each one.
+- Extra upstreams use plain HTTPS/HTTP with default CA verification and **never** receive the default upstream's mTLS client certificate or `CUSTOM_HEADER_*` headers.
+- Caveat: a default-upstream model whose ID happens to start with an extra upstream's prefix becomes unreachable — pick prefixes that can't collide.
 
 ### Mutual TLS
 
@@ -98,7 +118,7 @@ Prefer keeping real certs outside the repo (`CERTS_DIR` for Docker, an absolute 
 
 ## Using it
 
-Neither endpoint remaps model names — whatever `model` you send goes upstream unchanged, so it must be an ID the upstream actually serves:
+Neither endpoint remaps model names — apart from stripping an extra upstream's route prefix, whatever `model` you send goes upstream unchanged, so it must be an ID that upstream actually serves:
 
 ```bash
 curl http://localhost:8082/v1/models
@@ -109,6 +129,8 @@ curl http://localhost:8082/v1/models
 ```bash
 ANTHROPIC_BASE_URL=http://localhost:8082 ANTHROPIC_MODEL=<a-model-id-from-/v1/models> claude
 ```
+
+With extra upstreams configured, switch between them per session (`--model ollama/qwen3-coder:30b`) or inside a session with `/model`.
 
 Claude Code defaults to Anthropic model names (`claude-3-5-sonnet-...`), which this proxy won't recognize — point `ANTHROPIC_MODEL` (and `ANTHROPIC_SMALL_FAST_MODEL`, if used) at a real upstream model ID.
 
@@ -130,9 +152,16 @@ curl http://localhost:8082/messages \
   -d '{"model": "<a-model-id-from-/v1/models>", "max_tokens": 100, "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
-Other endpoints: `GET /v1/models` (or `/models`, lists what the upstream serves), `GET /health` (liveness + config summary), `GET /test-connection` (verifies upstream connectivity, mTLS included), `POST /messages/count_tokens` (rough estimate, ~4 chars/token).
+Other endpoints: `GET /v1/models` (or `/models`, lists what all upstreams serve, extra-upstream models prefixed), `GET /health` (liveness + config summary incl. upstreams), `GET /test-connection` (verifies connectivity to every upstream, mTLS included), `POST /messages/count_tokens` (rough estimate, ~4 chars/token).
 
 ## Testing
+
+Unit tests (no network, upstreams are faked):
+
+```bash
+pip install -e ".[dev]"
+pytest tests/test_upstream_routing.py
+```
 
 `tests/smoke_test.py` is a manual end-to-end script — it talks to a running instance (and your real upstream), so it needs a valid `.env` and a real model ID:
 
@@ -170,8 +199,12 @@ src/
 ├── core/
 │   ├── client.py               OpenAI SDK client, configured for mTLS
 │   ├── config.py                Environment-variable configuration
+│   ├── upstreams.py             Extra upstreams (UPSTREAM_<NAME>_*) and model-prefix router
 │   └── logging.py
 └── models/claude.py           Pydantic models for the Claude Messages API
+tests/
+├── test_upstream_routing.py   Offline unit tests (routing, config, endpoints)
+└── smoke_test.py              Manual end-to-end test against a running proxy
 ```
 
 ## Acknowledgments

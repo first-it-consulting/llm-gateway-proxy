@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -10,6 +11,7 @@ from src.conversion.response_converter import convert_openai_streaming_to_claude
 from src.core.client import OpenAIClient
 from src.core.config import config
 from src.core.logging import logger
+from src.core.upstreams import Route, UnroutableModelError, UpstreamRouter
 from src.models.claude import ClaudeMessagesRequest, ClaudeTokenCountRequest
 
 router = APIRouter()
@@ -23,6 +25,34 @@ openai_client = OpenAIClient(
     client_cert=config.get_client_cert(),
     verify=config.get_verify(),
 )
+
+# Extra upstreams (UPSTREAM_<NAME>_*) get plain HTTPS with default CA
+# verification -- no client certificate and no CUSTOM_HEADER_* headers, which
+# belong to the default (corporate) upstream only.
+router_upstreams = UpstreamRouter(
+    openai_client,
+    [
+        Route(
+            spec.name,
+            spec.prefix,
+            OpenAIClient(spec.api_key, spec.base_url, config.request_timeout),
+        )
+        for spec in config.extra_upstreams
+    ],
+)
+
+
+def resolve_upstream(model) -> tuple:
+    """Map a client-requested model to (route, upstream model name), or 400."""
+    if not isinstance(model, str) or not model:
+        raise HTTPException(status_code=400, detail="Request must include a 'model'.")
+    try:
+        route, upstream_model = router_upstreams.resolve(model)
+    except UnroutableModelError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if route.prefix:
+        logger.debug("Routing model %s -> upstream %s (%s)", model, route.name, upstream_model)
+    return route, upstream_model
 
 
 async def validate_api_key(
@@ -57,30 +87,62 @@ async def _sse_passthrough(lines):
 @router.post("/v1/chat/completions")
 async def create_chat_completion(http_request: Request, _: None = Depends(validate_api_key)):
     body = await http_request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Request body must be a JSON object.")
     request_id = str(uuid.uuid4())
+    route, upstream_model = resolve_upstream(body.get("model"))
+    body = {**body, "model": upstream_model}
+    client = route.client
 
     if body.get("stream"):
-        stream = openai_client.create_chat_completion_stream(body, request_id)
+        stream = client.create_chat_completion_stream(body, request_id)
         return StreamingResponse(
             _sse_passthrough(stream),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
         )
 
-    response = await openai_client.create_chat_completion(body, request_id)
+    response = await client.create_chat_completion(body, request_id)
     return JSONResponse(response)
 
 
 @router.get("/v1/models")
 @router.get("/models")
 async def list_models(_: None = Depends(validate_api_key)):
-    """List models available on the upstream, in OpenAI's /v1/models format."""
-    try:
-        models = [model.model_dump() async for model in openai_client.client.models.list()]
-        return {"object": "list", "data": models}
-    except Exception as e:
-        logger.error("Failed to list upstream models: %s", e)
-        raise HTTPException(status_code=502, detail=openai_client.classify_openai_error(str(e)))
+    """List models from every upstream, in OpenAI's /v1/models format.
+
+    Models from extra upstreams are listed with their route prefix (e.g.
+    "ollama/qwen3:8b"), i.e. exactly the ID a client must request. An
+    upstream that fails to answer is skipped; 502 only if all of them fail.
+    """
+    routes = router_upstreams.routes
+    results = await asyncio.gather(
+        *(r.client.list_models() for r in routes), return_exceptions=True
+    )
+
+    models, failures = [], []
+    for route, result in zip(routes, results):
+        if isinstance(result, BaseException):
+            logger.error("Failed to list models from upstream %s: %s", route.name, result)
+            failures.append(f"{route.name}: {result}")
+            continue
+        skipped = 0
+        for model in result:
+            model_id = model.get("id") if isinstance(model, dict) else None
+            if not isinstance(model_id, str) or not model_id:
+                skipped += 1  # malformed entry (e.g. some llama.cpp builds): don't poison the list
+                continue
+            if route.prefix:
+                model = {**model, "id": f"{route.prefix}{model_id}"}
+            models.append(model)
+        if skipped:
+            logger.warning("Upstream %s returned %d model(s) without an id; skipped", route.name, skipped)
+
+    if len(failures) == len(routes):
+        raise HTTPException(
+            status_code=502, detail="All upstreams failed to list models: " + "; ".join(failures)
+        )
+    return {"object": "list", "data": models}
 
 
 # ---------------------------------------------------------------------------
@@ -98,22 +160,25 @@ async def create_message(
     try:
         logger.debug("Processing Claude request: model=%s, stream=%s", request.model, request.stream)
         request_id = str(uuid.uuid4())
+        route, upstream_model = resolve_upstream(request.model)
+        client = route.client
         openai_request = convert_claude_to_openai(request)
+        openai_request["model"] = upstream_model
 
         if await http_request.is_disconnected():
             raise HTTPException(status_code=499, detail="Client disconnected")
 
         if request.stream:
-            openai_stream = openai_client.create_chat_completion_stream(openai_request, request_id)
+            openai_stream = client.create_chat_completion_stream(openai_request, request_id)
             return StreamingResponse(
                 convert_openai_streaming_to_claude(
-                    openai_stream, request, logger, http_request, openai_client, request_id
+                    openai_stream, request, logger, http_request, client, request_id
                 ),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
             )
 
-        openai_response = await openai_client.create_chat_completion(openai_request, request_id)
+        openai_response = await client.create_chat_completion(openai_request, request_id)
         return convert_openai_to_claude_response(openai_response, request)
 
     except HTTPException:
@@ -159,28 +224,46 @@ async def health_check():
         "upstream_configured": bool(config.openai_api_key),
         "mtls_enabled": config.get_client_cert() is not None,
         "client_api_key_validation": bool(config.proxy_api_key),
+        "upstreams": [
+            {"name": r.name, "prefix": r.prefix} for r in router_upstreams.routes
+        ],
     }
 
 
 @router.get("/test-connection")
 async def test_connection(_: None = Depends(validate_api_key)):
-    """Verify upstream connectivity (mTLS handshake, auth, reachability) by listing models."""
-    try:
-        models = [model.id async for model in openai_client.client.models.list()]
-        return {"status": "success", "model_count": len(models)}
-    except Exception as e:
-        logger.error("Upstream connectivity test failed: %s", e)
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "failed",
-                "message": str(e),
-                "suggestions": [
-                    "Check OPENAI_API_KEY and OPENAI_BASE_URL",
-                    "If using mTLS, check CLIENT_CERT_PATH/CLIENT_KEY_PATH and CA_BUNDLE_PATH",
-                ],
-            },
-        )
+    """Verify connectivity to every upstream (mTLS, auth, reachability) by listing models."""
+    routes = router_upstreams.routes
+
+    results = await asyncio.gather(
+        *(r.client.list_models() for r in routes), return_exceptions=True
+    )
+    upstreams = {}
+    for route, result in zip(routes, results):
+        if isinstance(result, BaseException):
+            logger.error("Connectivity test failed for upstream %s: %s", route.name, result)
+            upstreams[route.name] = {"status": "failed", "message": str(result)}
+        else:
+            upstreams[route.name] = {"status": "success", "model_count": len(result)}
+
+    failed = [name for name, r in upstreams.items() if r["status"] == "failed"]
+    if not failed:
+        default = upstreams["default"]
+        return {"status": "success", "model_count": default["model_count"], "upstreams": upstreams}
+
+    return JSONResponse(
+        status_code=503,
+        content={
+            "status": "failed",
+            "message": "; ".join(f"{n}: {upstreams[n]['message']}" for n in failed),
+            "upstreams": upstreams,
+            "suggestions": [
+                "Check OPENAI_API_KEY and OPENAI_BASE_URL",
+                "If using mTLS, check CLIENT_CERT_PATH/CLIENT_KEY_PATH and CA_BUNDLE_PATH",
+                "For extra upstreams, check UPSTREAM_<NAME>_BASE_URL and that the service is running",
+            ],
+        },
+    )
 
 
 @router.get("/")

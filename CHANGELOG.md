@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Multiple upstreams with model-prefix routing: `UPSTREAM_<NAME>_BASE_URL` (plus optional `_PREFIX`, `_API_KEY`) declares an extra OpenAI-compatible upstream such as a local Ollama. Requests for `<prefix><model>` go there with the prefix stripped; everything else goes to the default `OPENAI_BASE_URL` upstream unchanged. Extra upstreams never receive the default upstream's mTLS client certificate or `CUSTOM_HEADER_*` headers.
+- `GET /v1/models` merges models from all upstreams (prefixed); an unreachable upstream is skipped rather than failing the request.
+- `GET /health` lists configured upstreams; `GET /test-connection` reports per-upstream status.
+- `tests/test_upstream_routing.py`: offline unit tests for config parsing, routing and endpoints.
+
 ## [1.0.0] - 2026-08-17
 
 Initial release. Combines [claude-code-proxy](https://github.com/fuergaosi233/claude-code-proxy)'s Claude↔OpenAI translation layer with an internal corporate mTLS reverse proxy into a single service.
