@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "llm-gateway-proxy"
-version = "1.1.1"
+version = "1.1.2"
 description = "A single FastAPI proxy exposing an OpenAI-compatible endpoint and a Claude-compatible endpoint over an mTLS upstream, with optional extra upstreams routed by model prefix"
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -207,7 +207,7 @@ Versioning follows [SemVer](https://semver.org/); changes are recorded in [CHANG
 
 5. Pushing the tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which builds and pushes the multi-arch container image to GHCR and creates a GitHub Release from that version's changelog entry automatically — no need to write release notes twice.
 
-The image job authenticates with the run's built-in `GITHUB_TOKEN`, so there is no PAT to store or rotate. Both jobs are bound to the **`release`** environment, which requires approval from `first-it-consulting` before anything runs — pushing a tag parks the workflow at *Review deployments*, and approving it is what actually publishes.
+The image job authenticates with the run's built-in `GITHUB_TOKEN`, so there is no PAT to store or rotate, and pushing the tag is all it takes — nothing waits on a manual approval.
 
 One one-time prerequisite: the `llm-gateway-proxy` package must exist on ghcr before its first push (see the header of `.github/workflows/release.yml`). Settings → Actions → General → *Workflow permissions* can stay at the **Read-only** default — the `permissions:` block in the workflow overrides it.
 
