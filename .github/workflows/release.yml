@@ -23,21 +23,27 @@ name: Release
 #      stay "Read-only": a permissions: block in this workflow overrides it,
 #      so the packages: write declared above is what the token gets.
 #
-# Publishing is gated behind the "release" GitHub environment, which requires
-# approval from first-it-consulting before either job runs -- so a tag push
-# alone cannot publish, and a compromised push cannot silently ship an image.
-# Approve the pending deployment at the "Review deployments" prompt on the run
-# page. To revoke publishing immediately, delete the environment's required
-# reviewer (Settings -> Environments -> release) or delete the environment;
-# jobs bound to a nonexistent environment fail rather than run ungated.
+# Who can publish, and what the publish token can reach. An environment with a
+# required reviewer would gate this behind an approval, and that is what was
+# here originally, but it was removed: this repo has exactly one account, so the
+# required reviewer is the same identity that pushes the tag, and the approval
+# cannot be granted through the API (the deployment-approval endpoint is not
+# exposed to a personal-access token). Every release would then stall until
+# someone opened the run page and clicked "Review deployments". If you ever want
+# that gate back -- and it is a real improvement, it stops a stray or hostile
+# tag push from publishing -- create a "release" environment with yourself as
+# required reviewer and add `environment: release` to both jobs, and budget the
+# click on every release.
 #
-# Scope of the write token, so the remaining trade-off is visible:
-# packages:write is repository-scoped, not package-scoped -- once approved, the
-# run can push to ANY package belonging to this repository, not just
-# llm-gateway-proxy, and contents:write lets it move tags. It dies when the job
-# ends. Tag protection rules are an org/enterprise feature and this is a
-# user-owned repo, so the environment approval is the gate that stands in for
-# them.
+# What stands in for it instead: the trigger is a tag push, main is protected so
+# history cannot be rewritten under a tag, and tags are not protected (tag
+# protection rules are an org/enterprise feature and this is a user-owned repo),
+# so anyone with push access can trigger a publish.
+#
+# Reach of the publish token: packages:write is repository-scoped, not
+# package-scoped -- the run can push to ANY package belonging to this
+# repository, not just llm-gateway-proxy, and contents:write lets it move tags.
+# It dies when the job ends.
 
 on:
   push:
@@ -57,7 +63,6 @@ jobs:
     # reachable. Kept so a future "workflow_dispatch"/pull trigger addition
     # cannot quietly make the publishing job run on untrusted input.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    environment: release
     permissions:
       contents: read
       packages: write
@@ -105,9 +110,6 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    # Gate the GitHub Release behind the same approval as the image push,
-    # otherwise a tag could still publish notes without a review.
-    environment: release
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 

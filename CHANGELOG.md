@@ -6,7 +6,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ### Added
 
-- Published container images on GHCR: pushing a `vX.Y.Z` tag now builds `ghcr.io/first-it-consulting/llm-gateway-proxy` for `linux/amd64` and `linux/arm64` and pushes `X.Y.Z`, `X.Y` and `latest`. The package is public, so no login is needed to pull. `docker-compose.yml` names that image, so `docker compose pull` works out of the box. Publishing authenticates with the run's built-in `GITHUB_TOKEN`, so there is no standing credential to rotate, and both jobs sit behind a `release` environment that requires approval before anything runs — a tag push alone cannot publish. It needs one one-time setting in the repo's web UI: the ghcr package created up front (public, linked to this repo). Actions "Workflow permissions" can stay at its Read-only default.
+- Published container images on GHCR: pushing a `vX.Y.Z` tag now builds `ghcr.io/first-it-consulting/llm-gateway-proxy` for `linux/amd64` and `linux/arm64` and pushes `X.Y.Z`, `X.Y` and `latest`. The package is public, so no login is needed to pull. `docker-compose.yml` names that image, so `docker compose pull` works out of the box. Publishing authenticates with the run's built-in `GITHUB_TOKEN`, so there is no standing credential to rotate. It needs one one-time setting in the repo's web UI: the ghcr package created up front (public, linked to this repo). Actions "Workflow permissions" can stay at its Read-only default.
 
 ### Fixed
 
