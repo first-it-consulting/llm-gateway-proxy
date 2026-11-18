@@ -8,6 +8,9 @@ version = "1.1.0"
 description = "A single FastAPI proxy exposing an OpenAI-compatible endpoint and a Claude-compatible endpoint over an mTLS upstream, with optional extra upstreams routed by model prefix"
 readme = "README.md"
 license = { file = "LICENSE" }
+# Declared floor is 3.9, but no current GitHub runner can provision it
+# (python-versions has no 3.9 build for Ubuntu 24.04+), so CI covers 3.10 and
+# up. Anything below 3.10 is effectively untested -- raise this if you drop it.
 requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 4 - Beta",

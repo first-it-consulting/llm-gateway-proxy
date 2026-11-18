@@ -163,7 +163,7 @@ pip install -e ".[dev]"
 pytest tests/test_upstream_routing.py
 ```
 
-The same suite runs in CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) on Python 3.9 and 3.12 for every pull request and every push to `main`.
+The same suite runs in CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) on Python 3.10 and 3.12 for every pull request and every push to `main`; 3.12 is what the Docker image ships.
 
 `tests/smoke_test.py` is a manual end-to-end script — it talks to a running instance (and your real upstream), so it needs a valid `.env` and a real model ID:
 
