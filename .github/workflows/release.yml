@@ -12,16 +12,21 @@ name: Release
 # Auth uses the run's built-in GITHUB_TOKEN, not a stored PAT: it expires when
 # the run ends and the packages:write permission above is all it can do, so
 # there is no standing credential to rotate or leak. Two prerequisites, both
-# one-time and both set in the repo's web UI (the API cannot do them):
+# one-time and set in the repo's web UI (the API cannot do it):
 #
-#   1. The ghcr.io package must exist before its first push. Create it at
-#      https://github.com/first-it-consulting?tab=packages -> "New package" ->
-#      name "llm-gateway-proxy", visibility "Public" (so anyone can pull from
-#      this public repo without a login), linked to this repository. Without
-#      it the first push fails with a permission denied.
-#   2. Nothing else. The repo's Actions "Workflow permissions" default can
-#      stay "Read-only": a permissions: block in this workflow overrides it,
-#      so the packages: write declared above is what the token gets.
+#   The ghcr.io package does NOT have to exist first -- a first push with this
+#   run's GITHUB_TOKEN creates it, linked to this repository. But it is created
+#   PRIVATE, so anonymous pulls get 401. For this public repo's image to be
+#   pullable without a login, set it Public once at
+#   https://github.com/first-it-consulting?tab=packages -> llm-gateway-proxy ->
+#   Package settings -> Change visibility. Check with an unauthenticated
+#   request: curl -o /dev/null -w '%{http_code}\n' \
+#     https://ghcr.io/v2/first-it-consulting/llm-gateway-proxy/tags/list
+#   (401 = still private, 200 = public).
+#
+# The repo's Actions "Workflow permissions" setting can stay "Read-only": a
+# permissions: block in this workflow overrides it, so the packages: write
+# declared above is what the token gets.
 #
 # Who can publish, and what the publish token can reach. An environment with a
 # required reviewer would gate this behind an approval, and that is what was
