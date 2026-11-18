@@ -49,6 +49,8 @@ The proxy listens on `http://localhost:8082` (or whatever `PORT` you set).
 
 ## Quick Start (local Python)
 
+Needs Python 3.10 or newer (the Docker image ships 3.12).
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
