@@ -4,6 +4,10 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- Published container images on GHCR: pushing a `vX.Y.Z` tag now builds `ghcr.io/first-it-consulting/llm-gateway-proxy` for `linux/amd64` and `linux/arm64` and pushes `X.Y.Z`, `X.Y` and `latest`. The package is public, so no login is needed to pull. `docker-compose.yml` names that image, so `docker compose pull` works out of the box. Needs two repo secrets — `GHCR_USERNAME` and `GHCR_TOKEN` (a fine-grained PAT with package write access); until they exist the image job fails and only the GitHub Release is created.
+
 ### Fixed
 
 - A bare `pytest` in the repo is green again. The manual smoke script lived in `tests/` as `test_*.py`, so pytest collected its six `async def` steps and reported them as failures (`async def functions are not natively supported`) even though the script itself was fine. Renamed to `tests/smoke_test_check.py`, which pytest ignores by convention, and CI now runs the whole `pytest` suite instead of one named file.

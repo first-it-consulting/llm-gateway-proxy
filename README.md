@@ -47,6 +47,15 @@ docker compose up --build
 
 The proxy listens on `http://localhost:8082` (or whatever `PORT` you set).
 
+To run a published image instead of building it locally — multi-arch (`linux/amd64`, `linux/arm64`), public, no login needed:
+
+```bash
+docker compose pull          # or: docker pull ghcr.io/first-it-consulting/llm-gateway-proxy:1.1.1
+IMAGE_TAG=1.1.1 docker compose up -d
+```
+
+`IMAGE_TAG` defaults to `latest`; every `vX.Y.Z` tag also publishes `X.Y` and `latest`.
+
 ## Quick Start (local Python)
 
 Needs Python 3.10 or newer (the Docker image ships 3.12).
@@ -196,7 +205,7 @@ Versioning follows [SemVer](https://semver.org/); changes are recorded in [CHANG
    git push origin vX.Y.Z
    ```
 
-5. Pushing the tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which creates a GitHub Release from that version's changelog entry automatically — no need to write release notes twice.
+5. Pushing the tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which builds and pushes the multi-arch container image to GHCR and creates a GitHub Release from that version's changelog entry automatically — no need to write release notes twice. The image job needs the `GHCR_USERNAME`/`GHCR_TOKEN` repo secrets; if they are missing the Release still lands but no image is published.
 
 ## Project layout
 
