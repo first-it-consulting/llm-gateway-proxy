@@ -4,13 +4,15 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-18
+
 ### Fixed
 
 - `UPSTREAM_<NAME>_PREFIX` with upper-case characters is now rejected at startup. Prefixes are matched against requested model names case-sensitively, so a mixed-case prefix would never match and its models would silently go to the default (corporate) upstream instead of the intended one.
 
 ### Added
 
-- Continuous integration: `test` runs the unit suite on Python 3.9 and 3.12 for every pull request and every push to `main`, and is a required check on the protected `main` branch.
+- Continuous integration: `test` runs the unit suite on Python 3.10 and 3.12 for every pull request and every push to `main`, and is a required check on the now-protected `main` branch.
 
 ## [1.1.0] - 2026-11-18
 
@@ -53,6 +55,7 @@ Initial release. Combines [claude-code-proxy](https://github.com/fuergaosi233/cl
 
 - All Ollama-compatible shim endpoints (`/api/tags`, `/api/show`, `/api/version`) from the original corporate proxy — out of scope for this service.
 
-[Unreleased]: https://github.com/first-it-consulting/llm-gateway-proxy/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/first-it-consulting/llm-gateway-proxy/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/first-it-consulting/llm-gateway-proxy/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/first-it-consulting/llm-gateway-proxy/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/first-it-consulting/llm-gateway-proxy/releases/tag/v1.0.0
