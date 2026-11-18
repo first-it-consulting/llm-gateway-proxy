@@ -162,16 +162,16 @@ Unit tests (no network, upstreams are faked):
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/test_upstream_routing.py
+pytest
 ```
 
 The same suite runs in CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) on Python 3.10 and 3.12 for every pull request and every push to `main`; 3.12 is what the Docker image ships.
 
-`tests/smoke_test.py` is a manual end-to-end script — it talks to a running instance (and your real upstream), so it needs a valid `.env` and a real model ID:
+`tests/smoke_test_check.py` is a manual end-to-end script — it talks to a running instance (and your real upstream), so it needs a valid `.env` and a real model ID. It is named `*_check.py` rather than `test_*.py` on purpose, so `pytest` never collects it:
 
 ```bash
 python start_proxy.py &
-PROXY_TEST_MODEL=<a-model-id-from-/v1/models> python tests/smoke_test.py
+PROXY_TEST_MODEL=<a-model-id-from-/v1/models> python tests/smoke_test_check.py
 ```
 
 ## Deployment
@@ -212,7 +212,7 @@ src/
 └── models/claude.py           Pydantic models for the Claude Messages API
 tests/
 ├── test_upstream_routing.py   Offline unit tests (routing, config, endpoints)
-└── smoke_test.py              Manual end-to-end test against a running proxy
+└── smoke_test_check.py        Manual end-to-end check against a running proxy
 ```
 
 ## Acknowledgments

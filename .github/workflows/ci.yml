@@ -40,6 +40,4 @@ jobs:
           python -m pip install -e ".[dev]"
 
       - name: Run unit tests
-        # tests/ also holds smoke_test.py, a manual script that needs a live
-        # server and real credentials -- it is deliberately not collected here.
-        run: python -m pytest tests/test_upstream_routing.py -v
+        run: python -m pytest -v
