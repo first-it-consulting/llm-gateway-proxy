@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from src.api.endpoints import router as api_router
 from src.core.config import config
 
-app = FastAPI(title="llm-gateway-proxy", version="1.0.0")
+app = FastAPI(title="llm-gateway-proxy", version="1.1.0")
 app.include_router(api_router)
 
 

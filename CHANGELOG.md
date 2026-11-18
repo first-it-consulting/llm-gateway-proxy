@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-18
+
 ### Added
 
 - Multiple upstreams with model-prefix routing: `UPSTREAM_<NAME>_BASE_URL` (plus optional `_PREFIX`, `_API_KEY`) declares an extra OpenAI-compatible upstream such as a local Ollama. Requests for `<prefix><model>` go there with the prefix stripped; everything else goes to the default `OPENAI_BASE_URL` upstream unchanged. Extra upstreams never receive the default upstream's mTLS client certificate or `CUSTOM_HEADER_*` headers.
@@ -43,5 +45,6 @@ Initial release. Combines [claude-code-proxy](https://github.com/fuergaosi233/cl
 
 - All Ollama-compatible shim endpoints (`/api/tags`, `/api/show`, `/api/version`) from the original corporate proxy — out of scope for this service.
 
-[Unreleased]: https://github.com/first-it-consulting/llm-gateway-proxy/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/first-it-consulting/llm-gateway-proxy/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/first-it-consulting/llm-gateway-proxy/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/first-it-consulting/llm-gateway-proxy/releases/tag/v1.0.0
