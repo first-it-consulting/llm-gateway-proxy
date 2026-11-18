@@ -4,6 +4,10 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** the minimum supported Python is now 3.10 (`requires-python`). The floor was 3.9, but no current GitHub runner can provision 3.9 — the `actions/python-versions` manifest has no 3.9 build for Ubuntu 24.04 or later — so nothing was ever verifying it. The CI matrix and the declared floor now agree.
+
 ## [1.1.1] - 2026-11-18
 
 ### Fixed

@@ -20,11 +20,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.10 is the lowest Python GitHub can still provision on
-        # ubuntu-24.04 runners; 3.12 is what the Dockerfile ships
-        # (python:3.12-slim), so it is the version that actually runs in
-        # production. pyproject's requires-python floor is 3.9, which no
-        # current GitHub runner can build -- see the note there.
+        # 3.10 is pyproject's requires-python floor and the lowest Python
+        # GitHub can still provision on current runners; 3.12 is what the
+        # Dockerfile ships (python:3.12-slim), so it is the version that
+        # actually runs in production.
         python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
