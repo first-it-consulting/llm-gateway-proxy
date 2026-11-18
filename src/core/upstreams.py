@@ -56,6 +56,15 @@ def parse_extra_upstreams(environ: Mapping[str, str]) -> List[UpstreamSpec]:
                 f"{_ENV_PREFIX}{raw_name}_PREFIX must not be empty or blank -- "
                 "unprefixed models always go to the default upstream"
             )
+        # Prefixes are matched against client requests case-sensitively, so a
+        # mixed-case prefix would silently route to the default upstream (which
+        # carries the corporate credentials and mTLS cert) instead of here.
+        # Reject it at startup rather than mis-route later.
+        if prefix.lower() != prefix:
+            raise ValueError(
+                f"{_ENV_PREFIX}{raw_name}_PREFIX must be lowercase -- model prefixes "
+                "are matched case-sensitively against client requests"
+            )
         # Unset means the upstream needs no key (e.g. Ollama). Set-but-blank is
         # almost certainly a typo, so fail at startup instead of 401ing later.
         api_key_var = f"{_ENV_PREFIX}{raw_name}_API_KEY"

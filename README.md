@@ -163,6 +163,8 @@ pip install -e ".[dev]"
 pytest tests/test_upstream_routing.py
 ```
 
+The same suite runs in CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) on Python 3.10 and 3.12 for every pull request and every push to `main`; 3.12 is what the Docker image ships.
+
 `tests/smoke_test.py` is a manual end-to-end script — it talks to a running instance (and your real upstream), so it needs a valid `.env` and a real model ID:
 
 ```bash
@@ -179,16 +181,20 @@ PROXY_TEST_MODEL=<a-model-id-from-/v1/models> python tests/smoke_test.py
 
 Versioning follows [SemVer](https://semver.org/); changes are recorded in [CHANGELOG.md](CHANGELOG.md) ([Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format).
 
+`main` is a protected branch: changes arrive through a pull request, and the `test` check has to pass before it can merge. So prepare a release on a branch rather than committing on `main` directly.
+
 1. Move the relevant entries from `## [Unreleased]` into a new `## [X.Y.Z] - YYYY-MM-DD` section.
-2. Bump `version` in [pyproject.toml](pyproject.toml) to match.
-3. Commit, then tag and push:
+2. Bump `version` in [pyproject.toml](pyproject.toml) to match, and update the compare links at the bottom of [CHANGELOG.md](CHANGELOG.md).
+3. Open a pull request, wait for `test` to go green, and merge it.
+4. Tag the merge commit on `main` and push the tag:
 
    ```bash
+   git checkout main && git pull
    git tag vX.Y.Z
-   git push origin main vX.Y.Z
+   git push origin vX.Y.Z
    ```
 
-4. Pushing the tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which creates a GitHub Release from that version's changelog entry automatically — no need to write release notes twice.
+5. Pushing the tag triggers [.github/workflows/release.yml](.github/workflows/release.yml), which creates a GitHub Release from that version's changelog entry automatically — no need to write release notes twice.
 
 ## Project layout
 

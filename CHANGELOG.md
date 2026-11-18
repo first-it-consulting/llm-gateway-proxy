@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed
+
+- `UPSTREAM_<NAME>_PREFIX` with upper-case characters is now rejected at startup. Prefixes are matched against requested model names case-sensitively, so a mixed-case prefix would never match and its models would silently go to the default (corporate) upstream instead of the intended one.
+
+### Added
+
+- Continuous integration: `test` runs the unit suite on Python 3.9 and 3.12 for every pull request and every push to `main`, and is a required check on the protected `main` branch.
+
 ## [1.1.0] - 2026-11-18
 
 ### Added
